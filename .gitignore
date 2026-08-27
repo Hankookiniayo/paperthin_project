@@ -1,0 +1,36 @@
+# --- paperthin / claude 관련 (프로젝트 소스 아님) ---
+.claude/
+.agents/
+agent/
+skills-lock.json
+CLAUDE.md
+.mcp.json
+
+# --- env / secrets (공공API 키) ---
+.env
+.env.*
+!.env.example
+
+# --- deps / build ---
+node_modules/
+dist/
+build/
+.next/
+*.log
+
+# --- python ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# --- data cache (공공API 덤프) ---
+data/raw/
+data/cache/
+*.sqlite
+*.db
+
+# --- os / editor ---
+.DS_Store
+.idea/
+*.swp
