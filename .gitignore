@@ -34,3 +34,6 @@ data/cache/
 .DS_Store
 .idea/
 *.swp
+
+# --- re0 이터레이션 작업 폴더 (로컬 스크래치) ---
+.re0/
