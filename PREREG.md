@@ -14,6 +14,7 @@ import hashlib,io
 CYCLE="v0.2.0-fact-on-screen"          # 또는 "v0.1.0-source-decision"
 H1,H2="### 합격선","### 판정의 의미"    # G-A: "### 합격선 — G-A" / "### 판정의 의미 — G-A"
 # 보칙: "### 합격선 보칙 — G-C′ 판정 B" / "### 보칙 끝 — G-C′ 판정 B"
+# G-H: "### 합격선 — G-H" / "### 판정의 의미 — G-H"
 s=io.open(f".re0/iteration/{CYCLE}/EVIDENCE.local.md",encoding="utf-8").read()
 b=H1+s.split(H1)[1].split(H2)[0]
 print(hashlib.sha256(b.encode("utf-8")).hexdigest())
@@ -26,5 +27,6 @@ EOF
 | G-C′ — 레이어 커버리지 하한 | `v0.2.0-fact-on-screen` | `23ec3a666b6915158412843cd0779c53e2185f59e1e322fa432cba84c00e7322` | 2026-08-27 |
 | G-A — 축의 타당성 (백년가게 모순 검사) | `v0.2.0-fact-on-screen` | `8d759975d28713f2c9e7008dff0d27f7708692f7668cf24af00ad22d9982b86a` | 2026-08-27 |
 | G-C′ 보칙 — 판정 B의 「모집단에 없음」 취급 | `v0.2.0-fact-on-screen` | `dddff130874d784cb3cd40f21a13d6106572ab935d6789012499808b8e124ed0` | 2026-08-28 |
+| G-H — 축의 조준 (`/hate` H1의 첫 나사) | `v0.2.0-fact-on-screen` | `86ee451d7c4e1b55536913959c0ff5a40b9f54cfba6633b1c3c6d03cd036a162` | 2026-08-28 |
 
 해시가 안 맞으면 합격선이 사후에 수정된 것이고, 그 게이트는 무효다.
