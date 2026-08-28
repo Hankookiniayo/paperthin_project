@@ -10,12 +10,17 @@
 """
 import json, re, statistics, sys
 
-BIB = """능동미나리 황금콩밭 알트에이 소바키리스즈 서령 미진 유림면 유한 오일제 안덕
-고사리익스프레스 역전회관 안암 용금옥 필동면옥 황생가칼국수 대성집 할매집 개성만두궁
-호라파 금돼지식당 우래옥 자하손만두 정면 게방식당 곰탕랩 니시무라멘 합정옥 스바루
-미필담 베이스이즈나이스 마포옥 3대삼계장인 정인면옥 사루카메 서교난면방 면서울 꿉당
-옥동식 교다이야 진진 담택 오레노라멘 삼청동수제비 만두집 양양메밀막국수 맷돌
-임병주산동칼국수 화해당 계월 옥돌현옥""".split()
+GOLDSET = "data/raw/g0_goldset_bib.txt"   # gitignore — 목록 재배포를 피한다
+
+try:
+    BIB = [l.strip() for l in open(GOLDSET, encoding="utf-8")
+           if l.strip() and not l.startswith("#")]
+except FileNotFoundError:
+    sys.exit(f"정답셋이 없다: {GOLDSET}\n"
+             "미쉐린 가이드 서울 빕구르망 목록을 한 줄에 하나씩 넣어야 한다.\n"
+             "자동 수집은 불가하다(CloudFront WAF) — 사람이 브라우저에서 복사한다.\n"
+             "이 파일을 커밋하지 않는 것은 의도다. README 「배지 제외 결정」 참고.")
+
 
 norm = lambda s: re.sub(r"[\s()（）\[\]·.,'\"-]", "", s or "")
 rows = [json.loads(l) for l in open("analysis/g0_ranked.jsonl", encoding="utf-8")]
