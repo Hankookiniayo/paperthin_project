@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jjinmap — 서울 일반음식점, 인허가 후 경과</title>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;  --surface-2: #f0efec;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #7a7873;
+    --line: #d9d8d3;
+    /* 다색 순차 램프(파랑→진홍→자주). validate_palette.js --mode light --ordinal 전부 통과:
+       명도 단조 감소, 인접 ΔL ≥ 0.06, 밝은 끝 2.06:1.
+       **단일 색상 규칙에서 의도적으로 벗어났다** — 109,066개의 2~3px 점을 배경지도 위에서
+       구분하려면 명도만으로는 부족하다는 것이 실사용에서 확인됐다. 무지개는 쓰지 않았다:
+       명도가 단조롭지 않으면 가짜 경계가 생기고 그건 등급으로 읽힌다(G-V 3항).
+       중간에 보라를 넣지 않은 이유도 그것이다 — 보라와 빨강은 명도차가 0.012라 뭉갠다.
+       배경 지도는 두 테마 모두 밝게 유지한다(어두운 배경지도는 별도 검증 램프가 필요). */
+    --s1:#86b6ef; --s2:#4a92e6; --s3:#cc2f66; --s4:#4f1430;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --surface-1:#1a1a19; --surface-2:#242423;
+      --text-primary:#ffffff; --text-secondary:#c3c2b7; --text-muted:#8f8e85;
+      --line:#383835;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1:#1a1a19; --surface-2:#242423;
+    --text-primary:#ffffff; --text-secondary:#c3c2b7; --text-muted:#8f8e85;
+    --line:#383835;
+  }
+  * { box-sizing: border-box; }
+  html, body { height:100%; margin:0; }
+  body {
+    background: var(--surface-1); color: var(--text-primary);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+          "Pretendard", "Malgun Gothic", sans-serif;
+    display:flex; flex-direction:column;
+  }
+  header { padding:14px 18px 12px; border-bottom:1px solid var(--line); }
+  h1 { margin:0; font-size:16px; font-weight:650; letter-spacing:-.01em; }
+  .sub { margin:3px 0 0; font-size:13px; color:var(--text-secondary); }
+  .sub b { font-weight:600; color:var(--text-primary); }
+  #map { flex:1; min-height:320px; }
+  .panel {
+    position:absolute; z-index:2; background:var(--surface-1);
+    border:1px solid var(--line); border-radius:8px; padding:12px 14px;
+    box-shadow:0 1px 3px rgba(0,0,0,.08);
+  }
+  #legend { left:12px; bottom:12px; width:250px; }
+  #ctrl   { right:12px; top:12px; width:238px; }
+  .cap { font-size:11px; font-weight:600; letter-spacing:.03em;
+         text-transform:uppercase; color:var(--text-muted); margin-bottom:7px; }
+  .ramp { height:10px; border-radius:3px; border:1px solid var(--line);
+          background:linear-gradient(90deg,
+            var(--s1) 0%, var(--s2) 20%, var(--s3) 50%, var(--s4) 100%); }
+  .ticks { display:flex; justify-content:space-between; margin-top:4px;
+           font-size:11px; color:var(--text-secondary); font-variant-numeric:tabular-nums; }
+  .note { margin-top:8px; font-size:11.5px; color:var(--text-muted); line-height:1.45; }
+  input[type=range] { width:100%; margin:6px 0 2px; accent-color:var(--s3); }
+  #q { width:100%; font:inherit; font-size:13px; padding:5px 8px; margin-bottom:2px;
+       background:var(--surface-2); color:var(--text-primary);
+       border:1px solid var(--line); border-radius:5px; }
+  #qmsg { font-size:11.5px; color:var(--text-muted); min-height:16px; }
+  .warn { margin-top:5px; padding-top:5px; border-top:1px solid var(--line);
+          color:#b4304f; font-size:11.5px; line-height:1.4; }
+  .row { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+  .val { font-variant-numeric:tabular-nums; font-weight:600; }
+  .jump { display:flex; gap:5px; margin-top:11px; flex-wrap:wrap; }
+  .jump button {
+    font:inherit; font-size:12px; padding:4px 8px; cursor:pointer;
+    background:var(--surface-2); color:var(--text-primary);
+    border:1px solid var(--line); border-radius:5px;
+  }
+  .jump button:hover { border-color:var(--s3); }
+  footer { padding:11px 18px 14px; border-top:1px solid var(--line);
+           font-size:12px; color:var(--text-secondary); line-height:1.6; }
+  footer p { margin:0 0 4px; }
+  footer a { color:inherit; }
+  .maplibregl-popup-content {
+    background:var(--surface-1); color:var(--text-primary);
+    border:1px solid var(--line); border-radius:7px; padding:10px 12px;
+    font:inherit; font-size:13px; box-shadow:0 2px 8px rgba(0,0,0,.12);
+  }
+  .maplibregl-popup-tip { border-top-color:var(--surface-1) !important;
+                          border-bottom-color:var(--surface-1) !important; }
+  .pop-n { font-weight:650; margin-bottom:3px; }
+  .pop-m { color:var(--text-secondary); font-size:12px; }
+  #load { position:absolute; inset:0; display:grid; place-items:center; z-index:3;
+          background:var(--surface-1); color:var(--text-secondary); font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>jjinmap — 서울 일반음식점, 인허가 후 경과</h1>
+  <p class="sub"><b>오래된 순. 좋은 순이 아니다.</b> 인허가 대장이 기록한 날짜를 그대로 보여준다.</p>
+</header>
+
+<div id="map">
+  <div id="load">데이터 읽는 중…</div>
+
+  <div class="panel" id="ctrl">
+    <div class="cap">상호로 찾기</div>
+    <input type="text" id="q" placeholder="예: 우래옥, 이문 설농탕" autocomplete="off">
+    <div id="qmsg"></div>
+    <div class="cap" style="margin-top:11px">인허가 후 경과</div>
+    <div class="row"><span>최소</span><span class="val"><span id="minv">0</span>년</span></div>
+    <input type="range" id="slider" min="0" max="50" step="1" value="0">
+    <div class="row" style="font-size:11.5px;color:var(--text-muted)">
+      <span>표시 중</span><span class="val" id="count">–</span>
+    </div>
+    <div class="jump">
+      <button data-c="126.9850,37.5735" data-z="16">인사동</button>
+      <button data-c="127.1545,37.5560" data-z="15">고덕동</button>
+      <button data-c="127.0010,37.5705" data-z="16">종로5가</button>
+      <button data-c="126.9780,37.5665" data-z="11">서울 전체</button>
+    </div>
+  </div>
+
+  <div class="panel" id="legend">
+    <div class="cap">인허가 후 경과 (년)</div>
+    <div class="ramp"></div>
+    <div class="ticks"><span>0</span><span>10</span><span>25</span><span>50+</span></div>
+    <p class="note">눈금 간격이 고르지 않다 — 색 범위를 데이터가 몰린 앞쪽에 더 썼고,
+       50년을 넘으면 색이 더 진해지지 않는다(값은 팝업에 그대로 나온다).
+       연속 축이고 등급도 순위도 없다. 자르는 것은 위 슬라이더로 <b>보는 사람이</b> 한다.</p>
+  </div>
+</div>
+
+<footer>
+  <p><b>경과 = 데이터 기준일 − 인허가일자. 개업연도가 아니라 대장 등록일이다.</b>
+     상호 변경·이전·경매 인수는 새 신고가 되어 날짜가 다시 시작되므로(식품위생법 제39조 영업 승계)
+     실제 영업 기간은 여기 적힌 것보다 <b>대개 길다</b> — 이문 설농탕은 대장 1977년,
+     우래옥은 대장 1988년이다.</p>
+  <p><b>얼마나 긴지 재봤다.</b> 중소벤처기업부가 <b>업력 30년 이상</b>을 확인해 지정하는
+     <a href="https://www.data.go.kr/data/15132695/fileData.do" target="_blank"
+     rel="noopener">백년가게</a> 중 서울 소재를 이 대장과 맞춰봤다(<b>35곳</b> 대조).
+     <b>13곳(37%)이 대장 나이 30년 미만</b>이었고, 모자란 햇수(= 30년 − 대장 나이)는
+     <b>중앙값 10.8년, 최대 22.0년</b>이었다.
+     <b>이 값은 하한이다</b> — 지정 요건이 "30년 <em>이상</em>"이고 지정 시점도 오늘보다
+     앞서므로, 실제 차이는 이보다 크지 작지 않다.
+     <b>단 오래된 집만 모은 목록으로 잰 값이라 노포 쪽 이야기이고, 지도 전체의 평균이 아니다.</b></p>
+  <p><b>단 대장에는 입력 오류도 있고, 그건 반대 방향으로도 틀린다.</b> 영업중 기록 중 1960년 이전은
+     전 서울에 <b>2건</b>뿐인데(1911년 강남구 청담동, 1936년 영등포구), 셋째로 오래된 기록은
+     1963년이다. 1911년 청담동은 성립하지 않는다 — 그때 그 지역은 서울이 아니었다.
+     그래서 이 화면은 <b>"최소 N년"이라고 쓰지 않는다.</b> 대장에 적힌 것을 대장 기준이라고만 쓴다.</p>
+  <p><b>영업중 120,331곳 중 109,066곳(90.6%)만 지도에 있다.</b> 나머지 11,265곳은 대장에
+     좌표가 없다. 결측률은 구마다 다르다 — 종로구 28.3%가 가장 높다.</p>
+  <p>좌표는 대장의 <span id="crs">EPSG:5174</span>를 WGS84로 변환한 것이다(데이터셋 라벨의
+     EPSG:2097은 실측 결과 틀렸다 — 255m 차이).
+     출처: <a href="https://data.seoul.go.kr/dataList/OA-16094/S/1/datasetView.do"
+     target="_blank" rel="noopener">서울열린데이터광장 LOCALDATA 일반음식점 인허가(OA-16094)</a>
+     · 공공누리 제1유형 · 배경지도 © OpenStreetMap contributors.
+     <span id="gen"></span></p>
+</footer>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+// 연 수 → 색. 비선형이고 50년에서 포화한다. 둘 다 범례 눈금이 드러낸다.
+const STOPS = [[0,'#86b6ef'],[10,'#4a92e6'],[25,'#cc2f66'],[50,'#4f1430']];
+const SUSPECT_BEFORE = 1960;   // 이보다 이른 영업중 기록은 전 서울에 2건뿐 — 입력 오류 의심
+
+const map = new maplibregl.Map({
+  container:'map', center:[126.978,37.5665], zoom:11, maxZoom:18,
+  style:{ version:8, sources:{ osm:{
+      type:'raster', tileSize:256, maxzoom:19,
+      tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+      attribution:'© OpenStreetMap contributors' }},
+    layers:[{ id:'osm', type:'raster', source:'osm',
+      paint:{ 'raster-saturation':-0.85, 'raster-opacity':0.85 }}]}
+});
+map.addControl(new maplibregl.NavigationControl({showCompass:false}),'bottom-right');
+map.addControl(new maplibregl.ScaleControl({maxWidth:110}),'bottom-right');
+
+let ALL = [];
+
+map.on('load', async () => {
+  const d = await (await fetch('data/points.json')).json();
+  const gen = new Date(d.generated + 'T00:00:00Z');
+  document.getElementById('gen').textContent = '데이터 기준일 ' + d.generated + '.';
+  document.getElementById('crs').textContent = d.crs_in;
+
+  const F = d.fields, iLon=F.indexOf('lon'), iLat=F.indexOf('lat'), iApv=F.indexOf('apv'),
+        iNm=F.indexOf('name'), iUp=F.indexOf('uptae_i'), iGu=F.indexOf('gu'), iDo=F.indexOf('dong');
+
+  ALL = d.rows.map(r => {
+    const a = r[iApv], y = Math.floor(a/10000), m = Math.floor(a/100)%100, dd = a%100;
+    const years = (gen - Date.UTC(y, m-1, dd)) / 31557600000;   // 365.25일
+    return { type:'Feature',
+      geometry:{ type:'Point', coordinates:[r[iLon], r[iLat]] },
+      properties:{ years:Math.max(0, years), yr:y, name:r[iNm],
+                   apvs:`${y}-${String(m).padStart(2,'0')}-${String(dd).padStart(2,'0')}`,
+                   uptae:d.uptae[r[iUp]], gu:r[iGu], dong:r[iDo] } };
+  });
+
+  map.addSource('pts', { type:'geojson', data:{type:'FeatureCollection', features:ALL} });
+  map.addLayer({ id:'pts', type:'circle', source:'pts',
+    paint:{
+      'circle-color':['interpolate',['linear'],['min',['get','years'],50],...STOPS.flat()],
+      'circle-radius':['interpolate',['linear'],['zoom'],
+                       9,1.6, 12,2.4, 14,3.6, 16,5.5, 18,8],
+      'circle-opacity':['interpolate',['linear'],['zoom'], 9,0.55, 13,0.75, 16,0.9],
+      'circle-stroke-width':['interpolate',['linear'],['zoom'], 13,0, 15,0.6, 17,1],
+      'circle-stroke-color':'rgba(255,255,255,.85)'
+    }});
+
+  map.addLayer({ id:'hit', type:'circle', source:'pts',
+    filter:['==','name','\u0000'],
+    paint:{ 'circle-color':'rgba(0,0,0,0)', 'circle-radius':9,
+            'circle-stroke-width':2.5, 'circle-stroke-color':'#0b0b0b' }});
+  document.getElementById('load').remove();
+  update(0);
+});
+
+function update(min) {
+  const f = min === 0 ? ALL : ALL.filter(x => x.properties.years >= min);
+  map.getSource('pts').setData({ type:'FeatureCollection', features:f });
+  document.getElementById('count').textContent = f.length.toLocaleString('ko-KR') + '곳';
+  document.getElementById('minv').textContent = min;
+}
+const sl = document.getElementById('slider');
+sl.addEventListener('input', () => update(+sl.value));
+
+// 상호 검색 — 아는 가게를 찾을 수 있어야 핀을 실제 주소와 대조할 수 있다(D2).
+const q = document.getElementById('q'), qmsg = document.getElementById('qmsg');
+q.addEventListener('input', () => {
+  const v = q.value.trim();
+  if (!v) { qmsg.textContent = ''; map.setFilter('hit', ['==','name','\u0000']); return; }
+  const m = ALL.filter(f => f.properties.name.includes(v));
+  qmsg.textContent = m.length ? `${m.length}곳 — 흰 테두리로 표시` : '없음';
+  map.setFilter('hit', ['in', ['get','name'], ['literal', [...new Set(m.map(f=>f.properties.name))]]]);
+  if (m.length) {
+    const b = m.reduce((a,f) => a.extend(f.geometry.coordinates),
+                       new maplibregl.LngLatBounds(m[0].geometry.coordinates,
+                                                   m[0].geometry.coordinates));
+    map.fitBounds(b, { padding:120, maxZoom:16, duration:900 });
+  }
+});
+
+map.on('click','pts', e => {
+  const p = e.features[0].properties;
+  new maplibregl.Popup({closeButton:false, offset:9})
+    .setLngLat(e.features[0].geometry.coordinates)
+    .setHTML(`<div class="pop-n">${p.name}</div>
+              <div>대장 인허가일 ${p.apvs} · 대장 기준 ${Math.floor(p.years)}년</div>
+              <div class="pop-m">${p.uptae} · ${p.gu} ${p.dong}</div>` +
+             (p.yr < SUSPECT_BEFORE
+               ? `<div class="warn">⚠ 대장 기록이 주변과 크게 어긋난다. 영업중 기록 중
+                  ${SUSPECT_BEFORE}년 이전은 전 서울에 2건뿐이고 셋째는 1963년이다.
+                  입력 오류일 수 있다.</div>` : ''))
+    .addTo(map);
+});
+map.on('mouseenter','pts',()=>map.getCanvas().style.cursor='pointer');
+map.on('mouseleave','pts',()=>map.getCanvas().style.cursor='');
+
+document.querySelectorAll('.jump button').forEach(b =>
+  b.addEventListener('click', () => map.flyTo({
+    center:b.dataset.c.split(',').map(Number), zoom:+b.dataset.z, speed:1.4 })));
+</script>
+</body>
+</html>
