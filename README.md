@@ -548,6 +548,9 @@ CloudFront WAF로 막는다(자동 수집 불가, 사람이 브라우저로 복�
    **3-Clause BSD 전문을 같이 넣었다**(vendoring은 재배포다). 남은 런타임 외부 의존은
    **배경 타일 하나뿐**이다.
 4. **정적 호스트 배포 (사람).** origin이 이미 GitHub이므로 **GitHub Pages가 제일 짧은 길**이다.
+   - **`web/`는 Pages UI에서 못 고른다** (브랜치 루트 또는 `/docs`만 가능). 그래서
+     `.github/workflows/pages.yml`이 `web/`를 사이트 루트로 올린다. 빌드 스텝은 없다.
+     **`Settings > Pages > Source`를 「GitHub Actions」로 바꿔야 발동한다.**
    - `실호출` **GitHub Pages는 `.json`을 gzip으로 준다** — 초기 로드 **2.33 MB**
      (`pages.github.com/versions.json` → `content-encoding: gzip`). brotli는 아니다.
    - `1차문서` 한도: 게시 사이트 **최대 1 GB**, 대역폭 **월 100 GB 소프트**, 빌드 시간당 10회 소프트.
@@ -580,9 +583,12 @@ CloudFront WAF로 막는다(자동 수집 불가, 사람이 브라우저로 복�
 
 ### ⚠️ 다른 머신으로 옮길 때
 
-`.re0/`(RETRO·NEXT 포함), `data/raw/`(537콜 덤프), `analysis/g0_ranked.jsonl`은 **전부 gitignore다.**
-clone하면 없다. 커밋되어 살아남는 건 `PREREG.md`·`analysis/g0_tenure.py`·`analysis/g0_judgment_A.py`·
-`data/raw/pull_localdata.py`·README뿐이고, 덤프는 537콜을 다시 써야 한다(개발계정 일일 쿼터의 54%).
+`.re0/`(RETRO·NEXT 포함)와 `data/raw/`(537콜 덤프)는 **gitignore다. clone하면 없다.**
+⚠️ **정정 (2026-08-28)**: 이전 판은 `analysis/g0_ranked.jsonl`도 gitignore라고 적었는데
+**틀렸다 — 추적 중이다**(120,326줄, 40.6 MB. pack 전체는 10.1 MiB).
+커밋되어 살아남는 것: README · `PREREG.md` · `analysis/` 전부(스크립트와 `*.jsonl` 산출물) ·
+`data/seoul_areas.json` · `web/` 전부. **덤프만 없고**, 되살리려면 537콜을 다시 써야 한다
+(개발계정 일일 쿼터의 54%). `data/raw/pull_localdata.py`는 이어받기를 지원한다.
 수집기는 이어받기를 지원한다.
 
 **키**: `.env`(gitignore됨). 필요한 항목은 [`.env.example`](.env.example) 참고 —

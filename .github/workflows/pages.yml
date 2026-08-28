@@ -1,0 +1,53 @@
+# web/ 폴더를 GitHub Pages로 게시한다.
+#
+# 빌드 스텝이 없다 — 정적 HTML + vendoring된 MapLibre + points.json을 그대로 올린다.
+# 저장소 루트가 아니라 web/ 를 사이트 루트로 만드는 것이 이 워크플로의 존재 이유다
+# (Pages UI는 브랜치 루트나 /docs 만 고를 수 있어서 web/ 를 지정할 수 없다).
+#
+# 전제: Settings > Pages > Source 를 "GitHub Actions"로 바꿔 둘 것.
+#      private 저장소에서 Pages를 쓰려면 유료 플랜이 필요하다.
+
+name: Deploy web/ to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:        # Actions 탭에서 손으로도 돌릴 수 있게
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 게시는 하나씩. 진행 중인 배포를 취소하지 않는다.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 게시될 것을 먼저 적어 둔다
+        run: |
+          echo "::group::web/ 내용"
+          find web -type f | sort
+          echo "::endgroup::"
+          echo "합계 $(find web -type f | wc -l | tr -d ' ')개 · $(du -sh web | cut -f1)"
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web          # ← 사이트 루트 = web/. index.html이 여기 있다.
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
