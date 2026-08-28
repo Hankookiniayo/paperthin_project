@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>jjinmap — 서울 일반음식점, 인허가 후 경과</title>
-<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<link href="vendor/maplibre-gl.css" rel="stylesheet">
 <style>
   :root {
     color-scheme: light;
@@ -155,11 +155,12 @@
      EPSG:2097은 실측 결과 틀렸다 — 255m 차이).
      출처: <a href="https://data.seoul.go.kr/dataList/OA-16094/S/1/datasetView.do"
      target="_blank" rel="noopener">서울열린데이터광장 LOCALDATA 일반음식점 인허가(OA-16094)</a>
-     · 공공누리 제1유형 · 배경지도 © OpenStreetMap contributors.
+     · 공공누리 제1유형 · 배경지도 © OpenStreetMap contributors ·
+     지도 렌더러 <a href="vendor/maplibre-gl-LICENSE.txt">MapLibre GL JS</a> (3-Clause BSD).
      <span id="gen"></span></p>
 </footer>
 
-<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="vendor/maplibre-gl.js"></script>
 <script>
 // 연 수 → 색. 비선형이고 50년에서 포화한다. 둘 다 범례 눈금이 드러낸다.
 const STOPS = [[0,'#86b6ef'],[10,'#4a92e6'],[25,'#cc2f66'],[50,'#4f1430']];
